@@ -733,19 +733,14 @@ window.PAINEL_CONFIG = {
       esqueci: email => q(sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname})),
       novaSenha: senha => q(sb.auth.updateUser({password: senha})),
       criarUsuario: async (nome, email, senha, perfil) => {
-        // cliente separado: cria o usuário sem trocar a sessão do administrador
-        const sb2 = window.supabase.createClient(CFG.supabase.url, CFG.supabase.anonKey,
-          {auth: {persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'sb-cadastro-admin'}});
-        const d = await q(sb2.auth.signUp({email, password: senha, options: {data: {nome}}}));
-        const id = d && d.user && d.user.id;
-        if(!id || (d.user.identities && d.user.identities.length === 0)) throw {code: 'email-already-in-use', message: 'already registered'};
-        try{ await sb2.auth.signOut(); }catch(e){}
-        await q(sb.from('perfis').update({nome, email, perfil}).eq('id', id));
+        // cadastro direto no banco pelo administrador (sem limite de cadastros por hora)
+        await q(sb.rpc('admin_criar_usuario', {p_email: email, p_senha: senha, p_nome: nome, p_perfil: perfil}));
       },
+      definirSenha: (id, senha) => q(sb.rpc('admin_definir_senha', {p_id: id, p_senha: senha})),
       meuPerfil: async u => { const r = await q(sb.from('perfis').select('*').eq('id', u.uid).limit(1)); return r[0] || null; },
       listarUsuarios: async () => await q(sb.from('perfis').select('*').order('criado_em')),
       definirPerfil: (id, perfil) => q(sb.from('perfis').update({perfil}).eq('id', id)),
-      apagarUsuario: id => q(sb.from('perfis').delete().eq('id', id))
+      apagarUsuario: id => q(sb.rpc('admin_apagar_usuario', {p_id: id}))
     };
   }
 
@@ -891,7 +886,9 @@ window.PAINEL_CONFIG = {
     if(/email-already-in-use|already registered/i.test(c)) return 'Já existe um usuário com este e-mail.';
     if(/weak-password|at least 6|password should/i.test(c)) return 'A senha precisa ter pelo menos 6 caracteres.';
     if(/invalid-email|invalid email/i.test(c)) return 'E-mail inválido.';
-    if(/too-many-requests|rate limit/i.test(c)) return 'Muitas tentativas. Aguarde alguns minutos.';
+    if(/too-many-requests|rate limit/i.test(c)) return 'O Supabase bloqueou por excesso de tentativas. Aguarde alguns minutos.';
+    if(/admin_criar_usuario|function .* does not exist|could not find the function/i.test(c)) return 'Falta rodar o arquivo supabase-usuarios-admin.sql no SQL Editor do Supabase.';
+    if(/apenas administradores/i.test(c)) return 'Só administradores podem fazer isso.';
     if(/email not confirmed/i.test(c)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
     if(/network|fetch/i.test(c)) return 'Sem conexão com o servidor. Verifique a internet.';
     return 'Não foi possível concluir: ' + ((e && e.message) || e);
@@ -1000,7 +997,15 @@ window.PAINEL_CONFIG = {
     tb.querySelectorAll('[data-acao]').forEach(b => b.addEventListener('click', async () => {
       const tr = b.closest('tr'), id = tr.dataset.id, nome = tr.dataset.nome || tr.dataset.email, acao = b.dataset.acao;
       try{
-        if(acao === 'senha'){ await banco.esqueci(tr.dataset.email); toast('Link para criar nova senha enviado para ' + tr.dataset.email + '.'); return; }
+        if(acao === 'senha'){
+          if(banco.definirSenha){
+            const nova = prompt('Nova senha provisória para ' + nome + ' (mínimo 6 caracteres):', '123456');
+            if(nova === null) return;
+            if(nova.length < 6){ toast('A senha precisa ter pelo menos 6 caracteres.'); return; }
+            await banco.definirSenha(id, nova); toast('Senha de ' + nome + ' alterada para a senha provisória.'); return;
+          }
+          await banco.esqueci(tr.dataset.email); toast('Link para criar nova senha enviado para ' + tr.dataset.email + '.'); return;
+        }
         if(acao === 'bloquear'){ if(!confirm('Bloquear o acesso de ' + nome + '?')) return; await banco.definirPerfil(id, 'bloqueado'); toast(nome + ' foi bloqueado.'); }
         if(acao === 'desbloquear'){ await banco.definirPerfil(id, 'editor'); toast(nome + ' foi desbloqueado como Editor.'); }
         if(acao === 'apagar'){ if(!confirm('Apagar ' + nome + ' da equipe? A pessoa perde o acesso ao painel.')) return; await banco.apagarUsuario(id); toast(nome + ' foi apagado.'); }

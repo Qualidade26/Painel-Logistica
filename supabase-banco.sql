@@ -1,9 +1,9 @@
 -- =====================================================================
--- Banco do Painel Operacional da Logística — Supabase
--- Cole tudo em: Supabase → SQL Editor → New query → Run
+-- Banco do Painel Operacional da Logistica  Supabase
+-- Cole tudo em: Supabase  SQL Editor  New query  Run
 -- =====================================================================
 
--- Dados dos painéis (um registro por documento)
+-- Dados dos paineis (um registro por documento)
 create table if not exists public.docs (
   path        text primary key,
   col         text not null,
@@ -12,7 +12,7 @@ create table if not exists public.docs (
 );
 create index if not exists docs_col_idx on public.docs (col);
 
--- Cadastro de usuários (perfis)
+-- Cadastro de usuarios (perfis)
 create table if not exists public.perfis (
   id         uuid primary key references auth.users on delete cascade,
   nome       text,
@@ -21,6 +21,11 @@ create table if not exists public.perfis (
              check (perfil in ('pendente','visitante','editor','admin','bloqueado')),
   criado_em  timestamptz not null default now()
 );
+-- Se a tabela "perfis" ja existia com outro formato, completa as colunas que faltam
+alter table public.perfis add column if not exists nome      text;
+alter table public.perfis add column if not exists email     text;
+alter table public.perfis add column if not exists perfil    text not null default 'pendente';
+alter table public.perfis add column if not exists criado_em timestamptz not null default now();
 
 -- Travas curtas (evita duas baixas no mesmo item ao mesmo tempo)
 create table if not exists public.travas (
@@ -29,11 +34,11 @@ create table if not exists public.travas (
   expira  timestamptz not null
 );
 
--- E-mails que já entram como Administrador (mesma lista do index.html)
+-- E-mails que ja entram como Administrador (mesma lista do index.html)
 create or replace function public.admins_fixos() returns text[]
 language sql immutable as $$ select array['operacional@laborhs.com.br'] $$;
 
--- Perfil de quem está logado
+-- Perfil de quem esta logado
 create or replace function public.meu_perfil() returns text
 language sql stable security definer set search_path = public as $$
   select coalesce(
@@ -42,7 +47,7 @@ language sql stable security definer set search_path = public as $$
     'nenhum')
 $$;
 
--- Cria o perfil automaticamente quando alguém cria o acesso
+-- Cria o perfil automaticamente quando alguem cria o acesso
 create or replace function public.novo_usuario() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -56,7 +61,7 @@ drop trigger if exists ao_criar_usuario on auth.users;
 create trigger ao_criar_usuario after insert on auth.users
   for each row execute function public.novo_usuario();
 
--- Atualização parcial de um documento (mantém os outros campos)
+-- Atualizacao parcial de um documento (mantem os outros campos)
 create or replace function public.doc_merge(p text, d jsonb) returns void
 language plpgsql security invoker as $$
 begin
@@ -78,7 +83,7 @@ begin
   return coalesce(ok, false);
 end $$;
 
--- Segurança (quem pode ler e gravar)
+-- Seguranca (quem pode ler e gravar)
 alter table public.docs   enable row level security;
 alter table public.perfis enable row level security;
 alter table public.travas enable row level security;
@@ -103,7 +108,7 @@ drop policy if exists travas_tudo on public.travas;
 create policy travas_tudo on public.travas for all
   using (public.meu_perfil() in ('editor','admin')) with check (public.meu_perfil() in ('editor','admin'));
 
--- Atualização em tempo real
+-- Atualizacao em tempo real
 alter table public.docs replica identity full;
 do $$ begin
   alter publication supabase_realtime add table public.docs;

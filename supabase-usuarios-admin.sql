@@ -6,6 +6,7 @@
 create extension if not exists pgcrypto with schema extensions;
 
 -- Criar usuario (somente administrador)
+-- O usuario sera obrigado a trocar a senha provisoria no primeiro acesso
 create or replace function public.admin_criar_usuario(p_email text, p_senha text, p_nome text, p_perfil text)
 returns uuid
 language plpgsql security definer set search_path = public, extensions, auth as $$
@@ -24,7 +25,7 @@ begin
                           confirmation_token, recovery_token, email_change, email_change_token_new)
   values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', em,
           crypt(p_senha, gen_salt('bf')), now(),
-          '{"provider":"email","providers":["email"]}'::jsonb, jsonb_build_object('nome', p_nome),
+          '{"provider":"email","providers":["email"]}'::jsonb, jsonb_build_object('nome', p_nome, 'trocar_senha', true),
           now(), now(), '', '', '', '');
 
   insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
@@ -38,14 +39,19 @@ begin
   return uid;
 end $$;
 
--- Definir nova senha para um usuario (somente administrador)
+-- Definir nova senha provisoria para um usuario (somente administrador)
+-- O usuario sera obrigado a trocar no proximo acesso
 create or replace function public.admin_definir_senha(p_id uuid, p_senha text)
 returns void
 language plpgsql security definer set search_path = public, extensions, auth as $$
 begin
   if public.meu_perfil() <> 'admin' then raise exception 'permission denied: apenas administradores'; end if;
   if length(coalesce(p_senha, '')) < 6 then raise exception 'weak password: minimo 6 caracteres'; end if;
-  update auth.users set encrypted_password = crypt(p_senha, gen_salt('bf')), updated_at = now() where id = p_id;
+  update auth.users
+     set encrypted_password = crypt(p_senha, gen_salt('bf')),
+         raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb) || '{"trocar_senha": true}'::jsonb,
+         updated_at = now()
+   where id = p_id;
 end $$;
 
 -- Apagar usuario de vez (somente administrador)

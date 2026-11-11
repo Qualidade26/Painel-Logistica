@@ -214,6 +214,8 @@ window.PAINEL_CONFIG = {
   .auth-card .auth-sub{margin:0 0 16px 0; font-size:12px; color:var(--muted);}
   .auth-card .btn.auth-sec{margin-top:10px; background:#fff; color:var(--navy-800); border:1px solid var(--line);}
   .auth-card .btn.auth-sec:hover{background:#f5f8fc;}
+  .auth-card label.lembrar{display:flex; align-items:center; gap:8px; font-weight:500; color:var(--ink); margin:12px 0 0 0; cursor:pointer; font-size:12.5px;}
+  .auth-card label.lembrar input{width:16px; height:16px; margin:0; padding:0; accent-color:var(--blue-accent);}
   .auth-hint{font-size:11px; color:var(--muted); margin-top:4px;}
   @media (max-width:900px){
     .auth-screen .auth-bg{width:100%; opacity:.35;}
@@ -232,6 +234,14 @@ window.PAINEL_CONFIG = {
   .auth-foot{display:flex; justify-content:space-between; margin-top:10px;}
   .auth-info{font-size:13px; color:var(--ink); line-height:1.6;}
 
+  .modal-bg{position:fixed; inset:0; background:rgba(8,20,56,0.55); z-index:150; display:flex; align-items:center; justify-content:center; padding:16px;}
+  .modal-card{background:#fff; border-radius:14px; padding:24px 26px 20px 26px; width:100%; max-width:380px; box-shadow:0 20px 50px rgba(5,15,40,0.35);}
+  .modal-card h2{margin:0 0 10px 0; font-size:17px; color:var(--navy-800);}
+  .modal-card label{display:block; font-size:12px; font-weight:600; color:var(--navy-800); margin:10px 0 4px 0;}
+  .modal-card input{width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; font-family:inherit;}
+  .modal-acoes{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
+  .user-chip button.leve{background:#fff; color:var(--navy-800);}
+  .user-chip button.leve:hover{background:#dce8fb;}
   .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(30px); background:var(--navy-900); color:#fff;
     padding:11px 18px; border-radius:10px; font-size:13px; opacity:0; pointer-events:none; transition:all .25s; z-index:200;}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -357,7 +367,7 @@ window.PAINEL_CONFIG = {
             <form id="formNovoUsuario" class="novo-grid">
               <div><label for="novoNome">Nome</label><input id="novoNome" type="text" required></div>
               <div><label for="novoEmail">E-mail</label><input id="novoEmail" type="email" autocomplete="off" required></div>
-              <div><label for="novoSenha">Senha provisória (padrão 123456)</label><input id="novoSenha" type="text" value="123456" minlength="6" autocomplete="off" required></div>
+              <div><label for="novoSenha">Senha provisória (padrão 123456 · troca obrigatória no 1º acesso)</label><input id="novoSenha" type="text" value="123456" minlength="6" autocomplete="off" required></div>
               <div><label for="novoPerfil">Perfil</label><select id="novoPerfil">
                 <option value="editor" selected>Editor</option><option value="visitante">Visitante</option><option value="admin">Administrador</option></select></div>
               <div><button class="btn" type="submit" id="btnNovoUsuario">Criar usuário</button></div>
@@ -392,6 +402,7 @@ window.PAINEL_CONFIG = {
             <input id="loginEmail" type="email" autocomplete="username" placeholder="seu.nome@laborhs.com.br" required>
             <label for="loginSenha">Senha</label>
             <input id="loginSenha" type="password" autocomplete="current-password" required>
+            <label class="lembrar"><input type="checkbox" id="loginLembrar" checked> Lembrar meu login neste computador</label>
             <button class="btn" type="submit">Entrar</button>
             <button type="button" class="btn secondary auth-sec" id="btnEsqueci">Esqueci minha senha</button>
             <button type="button" class="btn secondary auth-sec" id="btnVisualizar" hidden>Voltar para visualização</button>
@@ -405,15 +416,33 @@ window.PAINEL_CONFIG = {
         </div>
 
         <form id="formNovaSenha" hidden>
-          <p class="auth-info">Digite sua nova senha.</p>
-          <label for="novaSenha">Nova senha</label>
+          <h2 id="novaSenhaTitulo">Crie sua senha pessoal</h2>
+          <p class="auth-sub" id="novaSenhaTexto">Este é o seu primeiro acesso. Troque a senha provisória por uma senha só sua.</p>
+          <label for="novaSenha">Nova senha (mínimo 6 caracteres)</label>
           <input id="novaSenha" type="password" autocomplete="new-password" minlength="6" required>
-          <button class="btn" type="submit">Salvar nova senha</button>
+          <label for="novaSenha2">Confirmar nova senha</label>
+          <input id="novaSenha2" type="password" autocomplete="new-password" minlength="6" required>
+          <button class="btn" type="submit">Salvar e entrar</button>
+          <button type="button" class="btn secondary auth-sec" id="btnSairTroca">Sair</button>
         </form>
 
         <div class="auth-msg" id="authMsg"></div>
       </div>
     </div>
+  </div>
+
+  <div class="modal-bg" id="modalSenha" hidden>
+    <form class="modal-card" id="formMinhaSenha">
+      <h2>Alterar minha senha</h2>
+      <label for="msAtual">Senha atual</label>
+      <input id="msAtual" type="password" autocomplete="current-password" required>
+      <label for="msNova">Nova senha (mínimo 6 caracteres)</label>
+      <input id="msNova" type="password" autocomplete="new-password" minlength="6" required>
+      <label for="msNova2">Confirmar nova senha</label>
+      <input id="msNova2" type="password" autocomplete="new-password" minlength="6" required>
+      <div class="auth-msg" id="msMsg"></div>
+      <div class="modal-acoes"><button type="button" class="btn secondary" id="msCancelar">Cancelar</button><button type="submit" class="btn" id="msSalvar">Salvar nova senha</button></div>
+    </form>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -621,6 +650,7 @@ window.PAINEL_CONFIG = {
       },
       sair: () => auth.signOut(),
       esqueci: email => auth.sendPasswordResetEmail(email),
+      trocarMinhaSenha: senha => auth.currentUser.updatePassword(senha),
       criarUsuario: async (nome, email, senha, perfil) => {
         // app separado: cria o usuário sem trocar a sessão do administrador
         const app2 = firebase.apps.find(a => a.name === 'cadastro') || firebase.initializeApp(CFG.firebase, 'cadastro');
@@ -732,10 +762,10 @@ window.PAINEL_CONFIG = {
       // ----- acesso -----
       onAuth: cb => {
         sb.auth.onAuthStateChange((ev, sess) => {
-          if(ev === 'PASSWORD_RECOVERY'){ mostrarNovaSenha(); return; }
+          if(ev === 'PASSWORD_RECOVERY'){ mostrarNovaSenha(false); return; }
           if(ev === 'TOKEN_REFRESHED' || ev === 'USER_UPDATED') return;
           const u = sess && sess.user;
-          setTimeout(() => cb(u ? {uid: u.id, email: u.email, nome: (u.user_metadata && u.user_metadata.nome) || ''} : null), 0);
+          setTimeout(() => cb(u ? {uid: u.id, email: u.email, nome: (u.user_metadata && u.user_metadata.nome) || '', trocarSenha: !!(u.user_metadata && u.user_metadata.trocar_senha)} : null), 0);
         });
       },
       entrar: async (email, senha) => { await q(sb.auth.signInWithPassword({email, password: senha})); },
@@ -746,6 +776,7 @@ window.PAINEL_CONFIG = {
       sair: () => sb.auth.signOut(),
       esqueci: email => q(sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + location.pathname})),
       novaSenha: senha => q(sb.auth.updateUser({password: senha})),
+      trocarMinhaSenha: senha => q(sb.auth.updateUser({password: senha, data: {trocar_senha: false}})),
       criarUsuario: async (nome, email, senha, perfil) => {
         // cadastro direto no banco pelo administrador (sem limite de cadastros por hora)
         await q(sb.rpc('admin_criar_usuario', {p_email: email, p_senha: senha, p_nome: nome, p_perfil: perfil}));
@@ -762,7 +793,7 @@ window.PAINEL_CONFIG = {
   // Estado de acesso + ponte com os painéis (iframes)
   // Os painéis pedem cada operação por postMessage; esta página executa.
   // ===================================================================
-  let cadastroEmAndamento = null;
+  let cadastroEmAndamento = null, liberarDepoisDaTroca = null;
   let banco = null, usuario = null, perfil = null, podeEditar = false, ehAdmin = false, liberado = false;
   let resolveDb, resolveUser;
   window.__claudeDbPromise = new Promise(r => resolveDb = r);
@@ -893,7 +924,14 @@ window.PAINEL_CONFIG = {
     $('authAguardando').hidden = modo !== 'aguardando';
     $('formNovaSenha').hidden = modo !== 'novaSenha';
   }
-  function mostrarNovaSenha(){ telaAcesso('novaSenha'); msgAuth(''); }
+  let trocaObrigatoria = false;
+  function mostrarNovaSenha(obrigatoria){
+    trocaObrigatoria = !!obrigatoria;
+    $('novaSenhaTitulo').textContent = obrigatoria ? 'Crie sua senha pessoal' : 'Nova senha';
+    $('novaSenhaTexto').textContent = obrigatoria ? 'Este é o seu primeiro acesso (ou sua senha foi redefinida). Troque a senha provisória por uma senha só sua.' : 'Digite sua nova senha.';
+    telaAcesso('novaSenha'); msgAuth('');
+    setTimeout(() => $('novaSenha').focus(), 50);
+  }
   function traduzErroAuth(e){
     const c = String((e && e.code) || '') + ' ' + String((e && e.message) || '');
     if(/invalid-credential|wrong-password|user-not-found|invalid login|invalid_credentials/i.test(c)) return 'E-mail ou senha incorretos.';
@@ -903,13 +941,37 @@ window.PAINEL_CONFIG = {
     if(/too-many-requests|rate limit/i.test(c)) return 'O Supabase bloqueou por excesso de tentativas. Aguarde alguns minutos.';
     if(/admin_criar_usuario|function .* does not exist|could not find the function/i.test(c)) return 'Falta rodar o arquivo supabase-usuarios-admin.sql no SQL Editor do Supabase.';
     if(/apenas administradores/i.test(c)) return 'Só administradores podem fazer isso.';
+    if(/different from the old|same_password|should be different/i.test(c)) return 'A nova senha precisa ser diferente da senha atual.';
     if(/email not confirmed/i.test(c)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
     if(/network|fetch/i.test(c)) return 'Sem conexão com o servidor. Verifique a internet.';
     return 'Não foi possível concluir: ' + ((e && e.message) || e);
   }
+  // ---- Lembrar login ----
+  const LS_EMAIL = 'painelLog_email', LS_TEMP = 'painelLog_sessaoTemp', SS_VIVA = 'painelLog_viva';
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k, v){ try{ if(v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); }catch(e){} }
+  function lembrarLogin(email, senha, lembrar){
+    if(lembrar){
+      lsSet(LS_EMAIL, email); lsSet(LS_TEMP, null);
+      // pede ao navegador para guardar a senha (Chrome/Edge mostram "Salvar senha?")
+      try{ if(window.PasswordCredential && navigator.credentials) navigator.credentials.store(new PasswordCredential({id: email, password: senha, name: email})).catch(()=>{}); }catch(e){}
+    }else{
+      lsSet(LS_EMAIL, null); lsSet(LS_TEMP, '1');
+      try{ sessionStorage.setItem(SS_VIVA, '1'); }catch(e){}
+    }
+  }
+  (function preencherLogin(){
+    const em = lsGet(LS_EMAIL);
+    if(em){ $('loginEmail').value = em; }
+    if(lsGet(LS_TEMP) === '1') $('loginLembrar').checked = false;
+  })();
   $('formLogin').addEventListener('submit', async ev => {
     ev.preventDefault(); msgAuth('Entrando…');
-    try{ await banco.entrar(paraEmail($('loginEmail').value), $('loginSenha').value); msgAuth(''); }
+    const email = paraEmail($('loginEmail').value), senha = $('loginSenha').value;
+    try{
+      await banco.entrar(email, senha); msgAuth('');
+      lembrarLogin(email, senha, $('loginLembrar').checked);
+    }
     catch(e){ msgAuth(traduzErroAuth(e), 'err'); }
   });
   $('btnEsqueci').addEventListener('click', async () => {
@@ -918,10 +980,46 @@ window.PAINEL_CONFIG = {
     try{ await banco.esqueci(email); msgAuth('Enviamos um link para redefinir a senha para ' + email + '.', 'ok'); }
     catch(e){ msgAuth(traduzErroAuth(e), 'err'); }
   });
+  function validarNova(nova, conf){
+    if(nova.length < 6) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if(nova !== conf) return 'As senhas não conferem.';
+    if(nova === '123456') return 'Escolha uma senha diferente da senha provisória (123456).';
+    return '';
+  }
   $('formNovaSenha').addEventListener('submit', async ev => {
     ev.preventDefault();
-    try{ await banco.novaSenha($('novaSenha').value); msgAuth('Senha alterada!', 'ok'); setTimeout(() => location.replace(location.pathname), 1200); }
-    catch(e){ msgAuth(traduzErroAuth(e), 'err'); }
+    const nova = $('novaSenha').value, erroV = validarNova(nova, $('novaSenha2').value);
+    if(erroV){ msgAuth(erroV, 'err'); return; }
+    msgAuth('Salvando…');
+    try{
+      await banco.trocarMinhaSenha(nova);
+      if(usuario && lsGet(LS_TEMP) !== '1') lembrarLogin(usuario.email, nova, true);
+      msgAuth('Senha alterada!', 'ok');
+      if(trocaObrigatoria && liberarDepoisDaTroca){ setTimeout(() => { msgAuth(''); liberarDepoisDaTroca(); }, 700); }
+      else setTimeout(() => location.replace(location.pathname), 1000);
+    }catch(e){ msgAuth(traduzErroAuth(e), 'err'); }
+  });
+  $('btnSairTroca').addEventListener('click', async () => { try{ await banco.sair(); }catch(e){} location.replace(location.pathname); });
+
+  function abrirMinhaSenha(){
+    $('formMinhaSenha').reset(); $('msMsg').textContent = ''; $('msMsg').className = 'auth-msg';
+    $('modalSenha').hidden = false; setTimeout(() => $('msAtual').focus(), 50);
+  }
+  $('msCancelar').addEventListener('click', () => { $('modalSenha').hidden = true; });
+  $('formMinhaSenha').addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const m = $('msMsg'), nova = $('msNova').value, erroV = validarNova(nova, $('msNova2').value);
+    if(erroV){ m.className = 'auth-msg err'; m.textContent = erroV; return; }
+    $('msSalvar').disabled = true; m.className = 'auth-msg'; m.textContent = 'Salvando…';
+    try{
+      try{ await banco.entrar(usuario.email, $('msAtual').value); }
+      catch(e){ throw {code: 'senha-atual', message: 'senha atual incorreta'}; }
+      await banco.trocarMinhaSenha(nova);
+      if(lsGet(LS_TEMP) !== '1') lembrarLogin(usuario.email, nova, true);
+      m.className = 'auth-msg ok'; m.textContent = 'Senha alterada com sucesso!';
+      setTimeout(() => { $('modalSenha').hidden = true; }, 1200);
+    }catch(e){ m.className = 'auth-msg err'; m.textContent = (e && e.code === 'senha-atual') ? 'A senha atual está incorreta.' : traduzErroAuth(e); }
+    finally{ $('msSalvar').disabled = false; }
   });
   $('btnVerificar').addEventListener('click', () => location.reload());
   if(CFG.leituraPublica){ $('btnVisualizar').hidden = false; $('btnVisualizar').addEventListener('click', () => { $('authScreen').hidden = true; }); }
@@ -938,8 +1036,11 @@ window.PAINEL_CONFIG = {
       $('btnEntrarChip').onclick = () => { telaAcesso('login'); };
       return;
     }
-    el.innerHTML = '👤 ' + esc(usuario.nome || usuario.email) + ' <span class="perfil">' + esc(PERFIS[perfil] || perfil) + '</span> <button type="button" id="btnSair">Sair</button>';
-    $('btnSair').onclick = async () => { try{ await banco.sair(); }catch(e){} location.replace(location.pathname); };
+    el.innerHTML = '👤 ' + esc(usuario.nome || usuario.email) + ' <span class="perfil">' + esc(PERFIS[perfil] || perfil) + '</span>' +
+      (banco && banco.trocarMinhaSenha ? ' <button type="button" class="leve" id="btnMinhaSenha" title="Alterar minha senha">🔑 Alterar senha</button>' : '') +
+      ' <button type="button" id="btnSair">Sair</button>';
+    if($('btnMinhaSenha')) $('btnMinhaSenha').onclick = abrirMinhaSenha;
+    $('btnSair').onclick = async () => { try{ sessionStorage.removeItem(SS_VIVA); }catch(e){} try{ await banco.sair(); }catch(e){} location.replace(location.pathname); };
   }
 
   function liberar(){
@@ -1016,7 +1117,7 @@ window.PAINEL_CONFIG = {
             const nova = prompt('Nova senha provisória para ' + nome + ' (mínimo 6 caracteres):', '123456');
             if(nova === null) return;
             if(nova.length < 6){ toast('A senha precisa ter pelo menos 6 caracteres.'); return; }
-            await banco.definirSenha(id, nova); toast('Senha de ' + nome + ' alterada para a senha provisória.'); return;
+            await banco.definirSenha(id, nova); toast('Senha de ' + nome + ' redefinida. No próximo acesso o painel pede para criar uma senha pessoal.'); return;
           }
           await banco.esqueci(tr.dataset.email); toast('Link para criar nova senha enviado para ' + tr.dataset.email + '.'); return;
         }
@@ -1037,7 +1138,7 @@ window.PAINEL_CONFIG = {
     try{
       await banco.criarUsuario(nome, email, senha, p);
       m.className = 'auth-msg ok';
-      m.textContent = 'Usuário criado! ' + nome + ' entra com ' + email + ' e a senha provisória.';
+      m.textContent = 'Usuário criado! ' + nome + ' entra com ' + email + ' e a senha provisória — no primeiro acesso o painel pede para criar uma senha pessoal.';
       $('formNovoUsuario').reset(); $('novoSenha').value = '123456';
       carregarUsuarios();
     }catch(e){ m.className = 'auth-msg err'; m.textContent = traduzErroAuth(e); }
@@ -1067,6 +1168,8 @@ window.PAINEL_CONFIG = {
     }
     if(modo === 'local'){ perfil = 'admin'; liberar(); return; }
 
+    let sessaoViva = false; try{ sessaoViva = sessionStorage.getItem(SS_VIVA) === '1'; }catch(e){}
+    if(lsGet(LS_TEMP) === '1' && !sessaoViva){ try{ await banco.sair(); }catch(e){} }
     let primeiro = true, uidAtual = null;
     banco.onAuth(async u => {
       const uid = u ? u.uid : null;
@@ -1088,6 +1191,11 @@ window.PAINEL_CONFIG = {
           ? 'Olá, <b>' + esc(usuario.nome) + '</b>! Seu acesso foi criado e está <b>aguardando liberação</b> de um administrador. Assim que for liberado, clique em "Verificar novamente".'
           : 'Seu acesso a este painel está <b>bloqueado</b>. Fale com um administrador.';
         telaAcesso('aguardando'); msgAuth('');
+        return;
+      }
+      if(u.trocarSenha && banco.trocarMinhaSenha){
+        liberarDepoisDaTroca = () => { usuario.trocarSenha = false; liberar(); };
+        mostrarNovaSenha(true);
         return;
       }
       liberar();
